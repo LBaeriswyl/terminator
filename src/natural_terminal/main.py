@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import signal
+import subprocess
 import sys
 import threading
+import time
+import urllib.parse
 from pathlib import Path
 
 import httpx
@@ -81,12 +85,8 @@ class App:
 
     def _startup_checks(self) -> bool:
         if not self.client.check_health():
-            self.ui.show_error(
-                "Cannot connect to Ollama.\n"
-                f"  URL: {self.client.base_url}\n"
-                "  Is Ollama running? Try: ollama serve"
-            )
-            return False
+            if not self._try_start_ollama():
+                return False
 
         if not self.client.check_model():
             self.ui.console.print(
@@ -107,6 +107,56 @@ class App:
                 return False
 
         return True
+
+    def _try_start_ollama(self) -> bool:
+        """Try to start Ollama locally. Returns True if Ollama is now reachable."""
+        parsed = urllib.parse.urlparse(self.client.base_url)
+        host = parsed.hostname or ""
+        if host not in ("localhost", "127.0.0.1"):
+            self.ui.show_error(
+                f"Cannot reach remote Ollama at {self.client.base_url}\n"
+                "  Check that the server is running and accessible."
+            )
+            return False
+
+        ollama_path = shutil.which("ollama")
+        if not ollama_path:
+            self.ui.show_error(
+                "Ollama is not installed.\n"
+                "  Install from: https://ollama.ai"
+            )
+            return False
+
+        try:
+            proc = subprocess.Popen(
+                [ollama_path, "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError as e:
+            self.ui.show_error(f"Failed to start Ollama: {e}")
+            return False
+
+        # Poll for readiness
+        with self.ui.show_spinner("Starting Ollama..."):
+            for _ in range(50):  # 50 * 0.3s = 15s
+                if proc.poll() is not None:
+                    self.ui.show_error(
+                        "Ollama process exited immediately.\n"
+                        "  Try running 'ollama serve' manually to see errors."
+                    )
+                    return False
+                if self.client.check_health():
+                    self.ui.console.print("[green]Ollama started.[/green]")
+                    return True
+                time.sleep(0.3)
+
+        self.ui.show_error(
+            "Timed out waiting for Ollama to start.\n"
+            "  Try running 'ollama serve' manually."
+        )
+        return False
 
     def _pull_model(self, model: str) -> None:
         self.ui.console.print(f"[cyan]Pulling {model}...[/cyan]")
