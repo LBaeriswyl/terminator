@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from natural_terminal.llm import OllamaClient, CommandResponse, ClarifyResponse, ParseError
-from natural_terminal.prompt import build_system_prompt
+from natural_terminal.prompt import build_system_prompt, MODEL_OVERRIDES
 from natural_terminal.context import ExchangeRecord, ConversationHistory
 
 CASES_FILE = Path(__file__).parent / "cases.json"
@@ -66,6 +66,7 @@ class CaseResult:
 @dataclass
 class EvalReport:
     model: str
+    prompt_version: str
     timestamp: str
     results: list[CaseResult] = field(default_factory=list)
 
@@ -87,7 +88,7 @@ class EvalReport:
 
     def format(self) -> str:
         lines = [
-            f"Model: {self.model} | Date: {self.timestamp}",
+            f"Model: {self.model} | Prompt: {self.prompt_version} | Date: {self.timestamp}",
             "=" * 60,
             f"{'Category':<25} {'Pass':>5} {'Part':>5} {'Fail':>5} {'Score':>7}",
             "-" * 60,
@@ -215,8 +216,12 @@ def run_eval(model: str, cases_file: Path, ollama_url: str = "http://localhost:1
         print(f"Error: Model '{model}' not found. Available: {client.list_models()}", file=sys.stderr)
         sys.exit(1)
 
-    system_prompt = build_system_prompt(SYNTHETIC_CONTEXT)
-    report = EvalReport(model=model, timestamp=datetime.now().strftime("%Y-%m-%d %H:%M"))
+    system_prompt = build_system_prompt(SYNTHETIC_CONTEXT, model=model)
+    report = EvalReport(
+        model=model,
+        prompt_version="default" if model not in MODEL_OVERRIDES else model,
+        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M"),
+    )
 
     print(f"Running {len(cases)} eval cases against {model}...")
 
@@ -311,6 +316,7 @@ def main():
 
         data = {
             "model": report.model,
+            "prompt_version": report.prompt_version,
             "timestamp": report.timestamp,
             "overall_score": report.overall_score,
             "results": [
