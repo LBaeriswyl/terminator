@@ -1,0 +1,422 @@
+[
+  {
+    "id": "nav-ls-basic",
+    "input": "list all files",
+    "expected_commands": ["ls", "ls -l"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-ls-hidden",
+    "input": "list all files including hidden ones",
+    "expected_commands": ["ls -la", "ls -al", "ls -a -l", "ls -lA"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-pwd",
+    "input": "where am I",
+    "expected_commands": ["pwd"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-tree",
+    "input": "show me the directory structure",
+    "expected_commands": ["tree", "tree .", "find . -type f", "ls -R"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-cd-home",
+    "input": "go to my home directory",
+    "expected_commands": ["cd ~", "cd $HOME", "cd"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-find-py",
+    "input": "find all Python files",
+    "expected_commands": ["find . -name '*.py'", "find . -name \"*.py\"", "find . -type f -name '*.py'", "find . -type f -name \"*.py\""],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "nav-size",
+    "input": "what's the size of the current directory",
+    "expected_commands": ["du -sh .", "du -sh", "du -s ."],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "medium"
+  },
+  {
+    "id": "nav-recent",
+    "input": "show me the 5 most recently modified files",
+    "expected_commands": ["ls -lt | head -6", "ls -lt | head -n 6", "find . -type f -printf '%T@ %p\\n' | sort -rn | head -5"],
+    "expected_type": "command",
+    "category": "file-navigation",
+    "difficulty": "medium"
+  },
+  {
+    "id": "file-rename",
+    "input": "rename foo.txt to bar.txt",
+    "expected_commands": ["mv foo.txt bar.txt"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-copy",
+    "input": "copy the src directory to src_backup",
+    "expected_commands": ["cp -r src src_backup", "cp -R src src_backup", "cp -a src src_backup"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-mkdir",
+    "input": "create a directory called tests",
+    "expected_commands": ["mkdir tests", "mkdir -p tests"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-touch",
+    "input": "create an empty file called notes.md",
+    "expected_commands": ["touch notes.md"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-delete",
+    "input": "delete the file called temp.log",
+    "expected_commands": ["rm temp.log"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-chmod",
+    "input": "make script.sh executable",
+    "expected_commands": ["chmod +x script.sh", "chmod 755 script.sh"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-cat",
+    "input": "show me the contents of README.md",
+    "expected_commands": ["cat README.md", "less README.md", "more README.md"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "file-head",
+    "input": "show me the first 20 lines of app.log",
+    "expected_commands": ["head -20 app.log", "head -n 20 app.log"],
+    "expected_type": "command",
+    "category": "file-manipulation",
+    "difficulty": "easy"
+  },
+  {
+    "id": "text-grep",
+    "input": "find all lines containing 'error' in app.log",
+    "expected_commands": ["grep 'error' app.log", "grep \"error\" app.log", "grep error app.log"],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "easy"
+  },
+  {
+    "id": "text-grep-recursive",
+    "input": "search for TODO in all source files",
+    "expected_commands": ["grep -r 'TODO' .", "grep -rn 'TODO' .", "grep -r \"TODO\" .", "grep -rn \"TODO\" ."],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "easy"
+  },
+  {
+    "id": "text-count-lines",
+    "input": "how many lines are in config.py",
+    "expected_commands": ["wc -l config.py", "wc -l < config.py", "cat config.py | wc -l"],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "easy"
+  },
+  {
+    "id": "text-replace",
+    "input": "replace all occurrences of 'foo' with 'bar' in main.py",
+    "expected_commands": ["sed -i 's/foo/bar/g' main.py", "sed -i '' 's/foo/bar/g' main.py"],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "medium"
+  },
+  {
+    "id": "text-sort-unique",
+    "input": "show unique lines in data.txt sorted alphabetically",
+    "expected_commands": ["sort -u data.txt", "sort data.txt | uniq"],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "medium"
+  },
+  {
+    "id": "text-extract-column",
+    "input": "show only the second column from a space-separated file data.csv",
+    "expected_commands": ["awk '{print $2}' data.csv", "cut -d' ' -f2 data.csv"],
+    "expected_type": "command",
+    "category": "text-processing",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sys-memory",
+    "input": "how much memory is being used",
+    "expected_commands": ["free -h", "vm_stat", "top -l 1 | head -n 10", "memory_pressure"],
+    "expected_type": "command",
+    "category": "system-info",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sys-disk",
+    "input": "how much disk space is available",
+    "expected_commands": ["df -h", "df -H"],
+    "expected_type": "command",
+    "category": "system-info",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sys-uptime",
+    "input": "how long has this machine been running",
+    "expected_commands": ["uptime"],
+    "expected_type": "command",
+    "category": "system-info",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sys-os",
+    "input": "what operating system am I running",
+    "expected_commands": ["uname -a", "sw_vers", "cat /etc/os-release", "uname -s"],
+    "expected_type": "command",
+    "category": "system-info",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sys-env",
+    "input": "show me all environment variables",
+    "expected_commands": ["env", "printenv", "set"],
+    "expected_type": "command",
+    "category": "system-info",
+    "difficulty": "easy"
+  },
+  {
+    "id": "proc-list",
+    "input": "show all running processes",
+    "expected_commands": ["ps aux", "ps -ef", "ps -A"],
+    "expected_type": "command",
+    "category": "process-management",
+    "difficulty": "easy"
+  },
+  {
+    "id": "proc-port",
+    "input": "what process is using port 8080",
+    "expected_commands": ["lsof -i :8080", "lsof -i:8080", "netstat -tlnp | grep 8080", "ss -tlnp | grep 8080"],
+    "expected_type": "command",
+    "category": "process-management",
+    "difficulty": "medium"
+  },
+  {
+    "id": "proc-kill-port",
+    "input": "kill the process on port 8080",
+    "expected_commands": ["lsof -ti:8080 | xargs kill", "kill $(lsof -ti:8080)", "fuser -k 8080/tcp"],
+    "expected_type": "command",
+    "category": "process-management",
+    "difficulty": "hard"
+  },
+  {
+    "id": "proc-find-name",
+    "input": "find all processes named python",
+    "expected_commands": ["ps aux | grep python", "pgrep python", "pgrep -la python", "ps aux | grep '[p]ython'"],
+    "expected_type": "command",
+    "category": "process-management",
+    "difficulty": "easy"
+  },
+  {
+    "id": "proc-top-cpu",
+    "input": "show top 5 processes by CPU usage",
+    "expected_commands": ["ps aux --sort=-%cpu | head -6", "ps aux | sort -k3 -rn | head -5", "top -l 1 -o cpu | head -15"],
+    "expected_type": "command",
+    "category": "process-management",
+    "difficulty": "medium"
+  },
+  {
+    "id": "net-ip",
+    "input": "what's my IP address",
+    "expected_commands": ["curl ifconfig.me", "curl -s ifconfig.me", "ip addr", "ifconfig", "curl icanhazip.com", "curl -s icanhazip.com"],
+    "expected_type": "command",
+    "category": "networking",
+    "difficulty": "easy"
+  },
+  {
+    "id": "net-ping",
+    "input": "check if google.com is reachable",
+    "expected_commands": ["ping -c 4 google.com", "ping -c 3 google.com", "ping google.com", "curl -I google.com"],
+    "expected_type": "command",
+    "category": "networking",
+    "difficulty": "easy"
+  },
+  {
+    "id": "net-download",
+    "input": "download the file at https://example.com/data.csv",
+    "expected_commands": ["curl -O https://example.com/data.csv", "curl -o data.csv https://example.com/data.csv", "wget https://example.com/data.csv"],
+    "expected_type": "command",
+    "category": "networking",
+    "difficulty": "easy"
+  },
+  {
+    "id": "net-ports",
+    "input": "show all open ports",
+    "expected_commands": ["netstat -tlnp", "ss -tlnp", "lsof -i -P -n | grep LISTEN", "netstat -an | grep LISTEN"],
+    "expected_type": "command",
+    "category": "networking",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ambig-delete-vague",
+    "input": "delete that thing",
+    "expected_commands": [],
+    "expected_type": "clarify",
+    "category": "ambiguous",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ambig-do-something",
+    "input": "do something with the files",
+    "expected_commands": [],
+    "expected_type": "clarify",
+    "category": "ambiguous",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ambig-fix-it",
+    "input": "fix it",
+    "expected_commands": [],
+    "expected_type": "clarify",
+    "category": "ambiguous",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ambig-move-stuff",
+    "input": "move the stuff",
+    "expected_commands": [],
+    "expected_type": "clarify",
+    "category": "ambiguous",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ambig-change-permissions",
+    "input": "change the permissions",
+    "expected_commands": [],
+    "expected_type": "clarify",
+    "category": "ambiguous",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ctx-same-js",
+    "input": "now do the same for .js files",
+    "expected_commands": ["find . -name '*.js'", "find . -name \"*.js\"", "find . -type f -name '*.js'", "find . -type f -name \"*.js\""],
+    "expected_type": "command",
+    "category": "context-dependent",
+    "difficulty": "medium",
+    "history": [
+      {"user_input": "find all python files", "generated_command": "find . -name '*.py'", "stdout": "./main.py\n./test.py\n", "exit_code": 0}
+    ]
+  },
+  {
+    "id": "ctx-count-prev",
+    "input": "now count them",
+    "expected_commands": ["find . -name '*.py' | wc -l", "find . -name \"*.py\" | wc -l", "find . -type f -name '*.py' | wc -l"],
+    "expected_type": "command",
+    "category": "context-dependent",
+    "difficulty": "medium",
+    "history": [
+      {"user_input": "find all python files", "generated_command": "find . -name '*.py'", "stdout": "./main.py\n./test.py\n./lib/utils.py\n", "exit_code": 0}
+    ]
+  },
+  {
+    "id": "ctx-filter-output",
+    "input": "filter that output for lines containing 'test'",
+    "expected_commands": ["find . -name '*.py' | grep test", "grep test", "find . -name '*.py' | grep 'test'"],
+    "expected_type": "command",
+    "category": "context-dependent",
+    "difficulty": "medium",
+    "history": [
+      {"user_input": "find all python files", "generated_command": "find . -name '*.py'", "stdout": "./main.py\n./test.py\n./tests/test_main.py\n", "exit_code": 0}
+    ]
+  },
+  {
+    "id": "ctx-go-back",
+    "input": "go back to the previous directory",
+    "expected_commands": ["cd -"],
+    "expected_type": "command",
+    "category": "context-dependent",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ctx-delete-created",
+    "input": "delete the file I just created",
+    "expected_commands": ["rm notes.md"],
+    "expected_type": "command",
+    "category": "context-dependent",
+    "difficulty": "hard",
+    "history": [
+      {"user_input": "create a file called notes.md", "generated_command": "touch notes.md", "stdout": "", "exit_code": 0}
+    ]
+  },
+  {
+    "id": "pipe-count-py",
+    "input": "count the number of Python files",
+    "expected_commands": ["find . -name '*.py' | wc -l", "find . -name \"*.py\" | wc -l", "find . -type f -name '*.py' | wc -l"],
+    "expected_type": "command",
+    "category": "multi-step",
+    "difficulty": "medium"
+  },
+  {
+    "id": "pipe-large-files",
+    "input": "find the 10 largest files in this directory",
+    "expected_commands": ["find . -type f -exec du -h {} + | sort -rh | head -10", "du -ah . | sort -rh | head -10", "find . -type f -printf '%s %p\\n' | sort -rn | head -10"],
+    "expected_type": "command",
+    "category": "multi-step",
+    "difficulty": "hard"
+  },
+  {
+    "id": "pipe-unique-ext",
+    "input": "list all unique file extensions in this directory",
+    "expected_commands": ["find . -type f | sed 's/.*\\.//' | sort -u", "find . -type f -name '*.*' | sed 's/.*\\.//' | sort -u"],
+    "expected_type": "command",
+    "category": "multi-step",
+    "difficulty": "hard"
+  },
+  {
+    "id": "pipe-word-freq",
+    "input": "show the most common words in README.md",
+    "expected_commands": ["cat README.md | tr -s ' ' '\\n' | sort | uniq -c | sort -rn | head", "tr -cs 'A-Za-z' '\\n' < README.md | sort | uniq -c | sort -rn | head"],
+    "expected_type": "command",
+    "category": "multi-step",
+    "difficulty": "hard"
+  },
+  {
+    "id": "pipe-running-ports",
+    "input": "list all services listening on TCP ports with their PIDs",
+    "expected_commands": ["lsof -i -P -n | grep LISTEN", "netstat -tlnp", "ss -tlnp"],
+    "expected_type": "command",
+    "category": "multi-step",
+    "difficulty": "medium"
+  }
+]
