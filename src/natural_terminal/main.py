@@ -202,7 +202,7 @@ class App:
     def _handle_natural_input(self, user_input: str) -> None:
         # Build prompt and messages
         prompt_ctx = self.context.build_prompt_context()
-        system_prompt = build_system_prompt(prompt_ctx)
+        system_prompt = build_system_prompt(prompt_ctx, model=self.client.model)
         messages = self.context.get_chat_messages(user_input)
 
         # Call LLM

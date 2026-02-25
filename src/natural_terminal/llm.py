@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from natural_terminal.prompt import FEW_SHOT_EXAMPLES
+from natural_terminal.prompt import get_few_shot_examples
 
 
 class CommandResponse(BaseModel):
@@ -110,7 +110,7 @@ class OllamaClient:
     ) -> CommandResponse | ClarifyResponse:
         full_messages = [
             {"role": "system", "content": system_prompt},
-            *FEW_SHOT_EXAMPLES,
+            *get_few_shot_examples(self.model),
             *messages,
         ]
 
