@@ -5,7 +5,7 @@ Translate natural language into shell commands using a local LLM via [Ollama](ht
 ## Prerequisites
 
 - Python 3.10+
-- [Ollama](https://ollama.com) installed and running
+- [Ollama](https://ollama.com) installed (will be started automatically if not running)
 - A pulled model (default: `llama3.1:8b`)
 
 ```bash
@@ -15,6 +15,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 # Pull a model
 ollama pull llama3.1:8b
 ```
+
+> **Note:** If Ollama is installed but not running, `nt` will start it automatically in the background. This only works for local connections — remote Ollama servers (`--url`) must be started separately.
 
 ## Installation
 
@@ -128,6 +130,6 @@ Key modules:
 - `llm.py` — Ollama client with structured JSON output via `format` parameter
 - `executor.py` — Safety classification (GREEN/YELLOW/RED) and command execution
 - `context.py` — Directory tree, conversation history, environment context
-- `prompt.py` — System prompt template with few-shot examples
+- `prompt.py` — System prompt template with few-shot examples and per-model overrides
 - `config.py` — TOML configuration with defaults and CLI overrides
 - `ui.py` — Rich panels + prompt_toolkit REPL
