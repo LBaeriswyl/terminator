@@ -1,22 +1,22 @@
 # Natural Terminal
 
-Translate natural language into shell commands using a local LLM via [Ollama](https://ollama.com). No external API calls — everything runs on your machine.
+Translate natural language into shell commands using a local LLM via [llama.cpp](https://github.com/ggerganov/llama.cpp). No external API calls — everything runs on your machine.
 
 ## Prerequisites
 
 - Python 3.10+
-- [Ollama](https://ollama.com) installed (will be started automatically if not running)
-- A pulled model (default: `llama3.1:8b`)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) installed (`llama-server` binary in PATH)
+- A GGUF model file (e.g., from [Hugging Face](https://huggingface.co))
 
 ```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
+# Install llama.cpp (macOS)
+brew install llama.cpp
 
-# Pull a model
-ollama pull llama3.1:8b
+# Download a model (example)
+huggingface-cli download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf --local-dir ~/models
 ```
 
-> **Note:** If Ollama is installed but not running, `nt` will start it automatically in the background. This only works for local connections — remote Ollama servers (`--url`) must be started separately.
+> **Note:** If `llama-server` is installed but not running, `nt` will start it automatically using the configured `model_path`. This only works for local connections — remote servers (`--url`) must be started separately.
 
 ## Installation
 
@@ -27,14 +27,17 @@ pip install -e ".[dev]"
 ## Usage
 
 ```bash
-# Start the REPL
+# Start the REPL (requires llama-server running or model_path configured)
 nt
 
-# Use a different model
+# Use a different model name (for prompt overrides)
 nt --model mistral
 
-# Use a remote Ollama server
-nt --url http://remote:11434
+# Use a remote LLM server
+nt --url http://remote:8080
+
+# Specify a GGUF model file for auto-start
+nt --model-path ~/models/llama3.1-8b-Q4_K_M.gguf
 
 # Generate default config file
 nt --init
@@ -69,14 +72,14 @@ Type "yes" to execute:
 
 ### Meta-commands
 
-| Command          | Description                          |
-|-----------------|--------------------------------------|
-| `/raw <cmd>`    | Execute a shell command directly     |
-| `/model <name>` | Switch the LLM model                 |
-| `/history`      | Show conversation history            |
-| `/context`      | Show current context sent to model   |
-| `/clear`        | Clear conversation history           |
-| `/help`         | Show available commands              |
+| Command          | Description                                    |
+|-----------------|------------------------------------------------|
+| `/raw <cmd>`    | Execute a shell command directly               |
+| `/model [name]` | Show or switch the model (requires models_dir) |
+| `/history`      | Show conversation history                      |
+| `/context`      | Show current context sent to model             |
+| `/clear`        | Clear conversation history                     |
+| `/help`         | Show available commands                        |
 
 ### Safety levels
 
@@ -95,8 +98,10 @@ Generate the default config with `nt --init`.
 ```toml
 [model]
 name = "llama3.1:8b"
-ollama_url = "http://localhost:11434"
+server_url = "http://localhost:8080"
 timeout = 30
+model_path = ""      # path to GGUF file (required for auto-start)
+models_dir = ""      # directory of GGUF files (for /model switching)
 
 [safety]
 auto_execute_safe = true
@@ -115,7 +120,7 @@ output_truncate_lines = 60
 # Run tests
 pytest tests/ -v
 
-# Run eval suite (requires Ollama)
+# Run eval suite (requires running llama-server)
 python evals/eval_suite.py --model llama3.1:8b
 python evals/eval_suite.py --model mistral --save
 ```
@@ -123,11 +128,11 @@ python evals/eval_suite.py --model mistral --save
 ## Architecture
 
 ```
-User input → REPL → Ollama /api/chat → Parse JSON → Safety classify → Confirm → Execute → History → Loop
+User input → REPL → llama-server /v1/chat/completions → Parse JSON → Safety classify → Confirm → Execute → History → Loop
 ```
 
 Key modules:
-- `llm.py` — Ollama client with structured JSON output via `format` parameter
+- `llm.py` — llama-server client with structured JSON output via `response_format`
 - `executor.py` — Safety classification (GREEN/YELLOW/RED) and command execution
 - `context.py` — Directory tree, conversation history, environment context
 - `prompt.py` — System prompt template with few-shot examples and per-model overrides

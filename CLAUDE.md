@@ -20,18 +20,19 @@ pytest tests/test_executor.py::TestSafetyClassifier::test_green_commands -v
 pytest tests/ --cov=natural_terminal
 
 # Run the app
-nt                          # default model
-nt --model mistral          # different model
-nt --url http://remote:11434
+nt                          # default (requires llama-server running or model_path configured)
+nt --model mistral          # different model name (for prompt overrides)
+nt --url http://remote:8080 # remote server
+nt --model-path ~/models/llama3.1-8b.gguf  # auto-start with specific model
 
-# Run eval suite (requires running Ollama instance)
+# Run eval suite (requires running llama-server)
 python evals/eval_suite.py --model llama3.1:8b
 python evals/eval_suite.py --model llama3.1:8b --save
 ```
 
 ## Architecture
 
-The app translates natural language → shell commands via a local Ollama LLM. The REPL loop lives in `main.py:App.run()` and orchestrates all other modules:
+The app translates natural language → shell commands via a local llama.cpp server (llama-server). The REPL loop lives in `main.py:App.run()` and orchestrates all other modules:
 
 ```
 User input → LLM request (with spinner) → Parse JSON response →
@@ -40,7 +41,7 @@ Safety classify (GREEN/YELLOW/RED) → Confirm → Execute → Record history �
 
 **Module dependency graph:**
 - `main.py` → imports and wires together all modules below
-- `llm.py` → Ollama `/api/chat` client; calls `get_few_shot_examples(model)` from `prompt.py`
+- `llm.py` → llama-server `/v1/chat/completions` client; calls `get_few_shot_examples(model)` from `prompt.py`
 - `prompt.py` → System prompt template with `{os_type}`, `{shell_type}`, `{cwd}`, `{dir_tree}`, `{username}` placeholders; per-model overrides via `MODEL_OVERRIDES` dict with 3-level resolution (exact model → family → defaults)
 - `executor.py` → Safety classification (curated GREEN/RED/INTERACTIVE command sets) + subprocess execution
 - `context.py` → StaticContext, DirectoryTree (cached, 500ms timeout), ConversationHistory (rolling window with output truncation), ContextManager
@@ -49,20 +50,24 @@ Safety classify (GREEN/YELLOW/RED) → Confirm → Execute → Record history �
 
 ## Key Design Decisions
 
-**LLM response parsing** uses a 4-tier fallback because small models produce unreliable JSON: direct JSON parse → extract from markdown fences → regex for `{...}` → treat bare single-line output as a command. The `format` parameter on `/api/chat` provides grammar-level JSON enforcement from Ollama's side.
+**LLM response parsing** uses a 4-tier fallback because small models produce unreliable JSON: direct JSON parse → extract from markdown fences → regex for `{...}` → treat bare single-line output as a command. The `response_format` parameter on `/v1/chat/completions` provides JSON schema enforcement from llama-server's side.
 
 **`cd` requires special handling** — subprocess can't change the parent process's cwd. `executor.handle_builtin()` calls `os.chdir()` directly for `cd`, and `executor.detect_cd_in_command()` catches `cd` inside chained commands (`cd /tmp && ls`). `export` similarly sets `os.environ` directly.
 
 **Safety classification** extracts the "real" command by skipping prefixes (`sudo`, `env`, `nohup`, `time`), then looks up against curated sets. Pipes/chains/redirects force minimum YELLOW regardless of the base command.
 
-**Auto-start Ollama** — `_try_start_ollama()` in `main.py` transparently starts Ollama if it's not running. Only triggers for localhost/127.0.0.1 connections (remote URLs get an error instead). Uses `Popen` with `start_new_session=True` so Ollama outlives the app, then polls `check_health()` with a spinner for up to 15s. Ollama itself handles duplicate instances (exits if port taken).
+**Auto-start llama-server** — `_try_start_server()` in `main.py` transparently starts llama-server if it's not running. Only triggers for localhost/127.0.0.1 connections (remote URLs get an error instead). Requires `model_path` to be configured. Uses `Popen` with `start_new_session=True`, then polls `/health` for `status == "ok"` with a spinner for up to 30s (GGUF loading can be slow). Stores the `Popen` object on `self._server_proc` for restart-based model switching.
 
 **Per-model prompt overrides** — `prompt.py` has a `MODEL_OVERRIDES` dict keyed by exact model name (`"llama3.1:8b"`) or family (`"llama3.1"`). Resolution checks exact → family → `DEFAULT_*` for each of `system_template` and `few_shot_examples` independently. `build_system_prompt()` and `get_few_shot_examples()` accept an optional `model` parameter; without it they use defaults (backward compatible).
+
+**Restart-based model switching** — `/model <name>` matches against GGUF files in `models_dir`. If the server was auto-started, it kills and restarts with the new model file. Matching normalizes names (`:` → `-`, lowercased) to fuzzy-match filenames.
+
+**Health check subtlety** — llama-server returns HTTP 200 with `{"status": "loading model"}` during startup. The health check explicitly verifies `status == "ok"`, not just HTTP status.
 
 **Signal handling** is state-dependent: SIGINT during LLM request raises KeyboardInterrupt to cancel httpx; during child execution it's forwarded to the process group; at the REPL prompt it's ignored.
 
 ## Testing
 
-Tests use `respx` to mock httpx (no Ollama needed). Test files mirror source modules: `test_llm.py`, `test_executor.py`, `test_context.py`, `test_config.py`, `test_prompt.py`, `test_main.py`. Tests that call `os.chdir()` or `os.environ` restore state in teardown. `test_main.py` uses `unittest.mock.patch` on `shutil.which`, `subprocess.Popen`, `time.sleep`, and `client.check_health` to test auto-start logic. `test_prompt.py` uses `monkeypatch` on `MODEL_OVERRIDES` to test 3-level resolution.
+Tests use `respx` to mock httpx (no llama-server needed). Test files mirror source modules: `test_llm.py`, `test_executor.py`, `test_context.py`, `test_config.py`, `test_prompt.py`, `test_main.py`. Tests that call `os.chdir()` or `os.environ` restore state in teardown. `test_main.py` uses `unittest.mock.patch` on `shutil.which`, `subprocess.Popen`, `time.sleep`, and `client.check_health` to test auto-start logic. `test_prompt.py` uses `monkeypatch` on `MODEL_OVERRIDES` to test 3-level resolution.
 
-The `evals/` directory is a separate quality benchmark (not CI) — it scores LLM+prompt combinations against 51 cases with exact/partial/fail scoring. Eval output includes `prompt_version` to track which prompt config was used. Run evals after changing `prompt.py`, the `format` parameter, or switching models.
+The `evals/` directory is a separate quality benchmark (not CI) — it scores LLM+prompt combinations against 51 cases with exact/partial/fail scoring. Eval output includes `prompt_version` to track which prompt config was used. Run evals after changing `prompt.py`, the `response_format` parameter, or switching models.

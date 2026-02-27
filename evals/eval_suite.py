@@ -16,7 +16,7 @@ from pathlib import Path
 # Add project root to path so we can import natural_terminal
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from natural_terminal.llm import OllamaClient, CommandResponse, ClarifyResponse, ParseError
+from natural_terminal.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
 from natural_terminal.prompt import build_system_prompt, MODEL_OVERRIDES
 from natural_terminal.context import ExchangeRecord, ConversationHistory
 
@@ -200,20 +200,16 @@ def score_case(expected_commands: list[str], expected_type: str, response) -> tu
     return (0.0, None, None)
 
 
-def run_eval(model: str, cases_file: Path, ollama_url: str = "http://localhost:11434") -> EvalReport:
-    """Run all cases against Ollama and return scored report."""
+def run_eval(model: str, cases_file: Path, server_url: str = "http://localhost:8080") -> EvalReport:
+    """Run all cases against the LLM server and return scored report."""
     with open(cases_file) as f:
         cases = json.load(f)
 
-    client = OllamaClient(base_url=ollama_url, model=model, timeout=60)
+    client = LlamaCppClient(base_url=server_url, model=model, timeout=60)
 
     # Health check
     if not client.check_health():
-        print(f"Error: Cannot connect to Ollama at {ollama_url}", file=sys.stderr)
-        sys.exit(1)
-
-    if not client.check_model(model):
-        print(f"Error: Model '{model}' not found. Available: {client.list_models()}", file=sys.stderr)
+        print(f"Error: Cannot connect to LLM server at {server_url}", file=sys.stderr)
         sys.exit(1)
 
     system_prompt = build_system_prompt(SYNTHETIC_CONTEXT, model=model)
@@ -297,13 +293,13 @@ def run_eval(model: str, cases_file: Path, ollama_url: str = "http://localhost:1
 
 def main():
     parser = argparse.ArgumentParser(description="Run LLM evaluation suite")
-    parser.add_argument("--model", default="llama3.1:8b", help="Ollama model to evaluate")
+    parser.add_argument("--model", default="llama3.1:8b", help="Model name (for prompt overrides)")
     parser.add_argument("--cases", type=Path, default=CASES_FILE, help="Path to cases JSON")
-    parser.add_argument("--url", default="http://localhost:11434", help="Ollama server URL")
+    parser.add_argument("--url", default="http://localhost:8080", help="LLM server URL")
     parser.add_argument("--save", action="store_true", help="Save results to evals/results/")
     args = parser.parse_args()
 
-    report = run_eval(args.model, args.cases, args.url)
+    report = run_eval(args.model, args.cases, server_url=args.url)
 
     print()
     print(report.format())

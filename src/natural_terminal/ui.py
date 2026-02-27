@@ -102,7 +102,7 @@ class TerminalUI:
         self.console.print(
             Panel(
                 f"[bold]Natural Terminal[/bold]\n"
-                f"Model: [cyan]{model}[/cyan] | Ollama: [cyan]{url}[/cyan]\n"
+                f"Model: [cyan]{model}[/cyan] | Server: [cyan]{url}[/cyan]\n"
                 f'Type naturally or [dim]/help[/dim] for commands. [dim]Ctrl+D[/dim] to exit.',
                 border_style="blue",
                 padding=(0, 1),
@@ -113,7 +113,7 @@ class TerminalUI:
         help_text = (
             "[bold]Meta-commands:[/bold]\n"
             "  /raw <cmd>    Execute a shell command directly\n"
-            "  /model <name> Switch the LLM model\n"
+            "  /model [name] Show or switch the model (requires models_dir config)\n"
             "  /history      Show conversation history\n"
             "  /context      Show current context sent to model\n"
             "  /clear        Clear conversation history\n"
