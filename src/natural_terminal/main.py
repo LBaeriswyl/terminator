@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import shutil
 import signal
 import subprocess
 import sys
-import threading
 import time
 import urllib.parse
 from pathlib import Path
@@ -19,7 +18,7 @@ from natural_terminal import __version__
 from natural_terminal.config import AppConfig, write_default_config, CONFIG_FILE
 from natural_terminal.context import ContextManager
 from natural_terminal.executor import CommandExecutor, SafetyClassifier, SafetyLevel
-from natural_terminal.llm import OllamaClient, CommandResponse, ClarifyResponse, ParseError
+from natural_terminal.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
 from natural_terminal.prompt import build_system_prompt
 from natural_terminal.ui import TerminalUI
 
@@ -27,8 +26,8 @@ from natural_terminal.ui import TerminalUI
 class App:
     def __init__(self, config: AppConfig):
         self.config = config
-        self.client = OllamaClient(
-            base_url=config.model.ollama_url,
+        self.client = LlamaCppClient(
+            base_url=config.model.server_url,
             model=config.model.name,
             timeout=config.model.timeout,
         )
@@ -45,15 +44,12 @@ class App:
         self.ui = TerminalUI(auto_execute_safe=config.safety.auto_execute_safe)
         self._llm_active = False
         self._child_running = False
+        self._server_proc: subprocess.Popen | None = None
 
     def run(self) -> None:
         # Startup checks
         if not self._startup_checks():
             return
-
-        # Background warmup
-        warmup_thread = threading.Thread(target=self.client.warmup, daemon=True)
-        warmup_thread.start()
 
         # Install signal handler
         signal.signal(signal.SIGINT, self._handle_sigint)
@@ -85,99 +81,76 @@ class App:
 
     def _startup_checks(self) -> bool:
         if not self.client.check_health():
-            if not self._try_start_ollama():
+            if not self._try_start_server():
                 return False
-
-        if not self.client.check_model():
-            self.ui.console.print(
-                f"[yellow]Model '{self.client.model}' not found.[/yellow]"
-            )
-            available = self.client.list_models()
-            if available:
-                self.ui.console.print(f"Available models: {', '.join(available)}")
-
-            try:
-                answer = input(f"Pull '{self.client.model}'? [y/N] ")
-            except (EOFError, KeyboardInterrupt):
-                return False
-
-            if answer.strip().lower() in ("y", "yes"):
-                self._pull_model(self.client.model)
-            else:
-                return False
-
         return True
 
-    def _try_start_ollama(self) -> bool:
-        """Try to start Ollama locally. Returns True if Ollama is now reachable."""
+    def _try_start_server(self) -> bool:
+        """Try to start llama-server locally. Returns True if the server is now reachable."""
         parsed = urllib.parse.urlparse(self.client.base_url)
         host = parsed.hostname or ""
+        port = parsed.port or 8080
         if host not in ("localhost", "127.0.0.1"):
             self.ui.show_error(
-                f"Cannot reach remote Ollama at {self.client.base_url}\n"
+                f"Cannot reach LLM server at {self.client.base_url}\n"
                 "  Check that the server is running and accessible."
             )
             return False
 
-        ollama_path = shutil.which("ollama")
-        if not ollama_path:
+        server_path = shutil.which("llama-server")
+        if not server_path:
             self.ui.show_error(
-                "Ollama is not installed.\n"
-                "  Install from: https://ollama.ai"
+                "llama-server is not installed.\n"
+                "  Install from: https://github.com/ggerganov/llama.cpp"
+            )
+            return False
+
+        model_path = self.config.model.model_path
+        if not model_path:
+            self.ui.show_error(
+                "No model_path configured. Set it in ~/.natural-terminal/config.toml\n"
+                "  or pass --model-path /path/to/model.gguf"
+            )
+            return False
+
+        if not Path(model_path).is_file():
+            self.ui.show_error(
+                f"Model file not found: {model_path}\n"
+                "  Download a GGUF model from https://huggingface.co"
             )
             return False
 
         try:
             proc = subprocess.Popen(
-                [ollama_path, "serve"],
+                [server_path, "-m", model_path, "--port", str(port)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
         except OSError as e:
-            self.ui.show_error(f"Failed to start Ollama: {e}")
+            self.ui.show_error(f"Failed to start llama-server: {e}")
             return False
 
-        # Poll for readiness
-        with self.ui.show_spinner("Starting Ollama..."):
-            for _ in range(50):  # 50 * 0.3s = 15s
+        # Poll for readiness (up to 30s — GGUF loading can be slow)
+        with self.ui.show_spinner("Starting llama-server..."):
+            for _ in range(100):  # 100 * 0.3s = 30s
                 if proc.poll() is not None:
                     self.ui.show_error(
-                        "Ollama process exited immediately.\n"
-                        "  Try running 'ollama serve' manually to see errors."
+                        "llama-server process exited immediately.\n"
+                        "  Try running 'llama-server -m <model.gguf>' manually to see errors."
                     )
                     return False
                 if self.client.check_health():
-                    self.ui.console.print("[green]Ollama started.[/green]")
+                    self._server_proc = proc
+                    self.ui.console.print("[green]llama-server started.[/green]")
                     return True
                 time.sleep(0.3)
 
         self.ui.show_error(
-            "Timed out waiting for Ollama to start.\n"
-            "  Try running 'ollama serve' manually."
+            "Timed out waiting for llama-server to start.\n"
+            "  Try running 'llama-server -m <model.gguf>' manually."
         )
         return False
-
-    def _pull_model(self, model: str) -> None:
-        self.ui.console.print(f"[cyan]Pulling {model}...[/cyan]")
-        try:
-            with self.client.pull_model(model) as resp:
-                for line in resp.iter_lines():
-                    if line:
-                        try:
-                            data = json.loads(line)
-                            status = data.get("status", "")
-                            if "total" in data and "completed" in data:
-                                pct = int(data["completed"] / data["total"] * 100)
-                                print(f"\r  {status}: {pct}%", end="", flush=True)
-                            else:
-                                print(f"\r  {status}", end="", flush=True)
-                        except json.JSONDecodeError:
-                            pass
-                print()
-            self.ui.console.print(f"[green]Model {model} pulled successfully.[/green]")
-        except httpx.HTTPError as e:
-            self.ui.show_error(f"Failed to pull model: {e}")
 
     def _handle_sigint(self, signum, frame):
         if self._llm_active:
@@ -201,14 +174,7 @@ class App:
                 return
             self._execute_raw(arg)
         elif cmd == "/model":
-            if not arg:
-                self.ui.console.print(f"Current model: [cyan]{self.client.model}[/cyan]")
-                available = self.client.list_models()
-                if available:
-                    self.ui.console.print(f"Available: {', '.join(available)}")
-                return
-            self.client.model = arg
-            self.ui.console.print(f"Switched to model: [cyan]{arg}[/cyan]")
+            self._handle_model_command(arg)
         elif cmd == "/history":
             self.ui.show_history(self.context.history.records)
         elif cmd == "/context":
@@ -220,6 +186,90 @@ class App:
             self.ui.show_help()
         else:
             self.ui.show_error(f"Unknown command: {cmd}. Type /help for available commands.")
+
+    def _handle_model_command(self, arg: str) -> None:
+        if not arg:
+            self.ui.console.print(f"Current model: [cyan]{self.client.model}[/cyan]")
+            models_dir = self.config.model.models_dir
+            if models_dir and Path(models_dir).is_dir():
+                gguf_files = sorted(Path(models_dir).glob("*.gguf"))
+                if gguf_files:
+                    self.ui.console.print("Available models:")
+                    for f in gguf_files:
+                        self.ui.console.print(f"  {f.stem}")
+                else:
+                    self.ui.console.print(f"[dim]No .gguf files in {models_dir}[/dim]")
+            elif models_dir:
+                self.ui.console.print(f"[dim]models_dir not found: {models_dir}[/dim]")
+            return
+
+        # Find the matching GGUF file
+        models_dir = self.config.model.models_dir
+        if not models_dir or not Path(models_dir).is_dir():
+            self.ui.show_error(
+                "No models_dir configured. Set it in ~/.natural-terminal/config.toml\n"
+                "  to enable model switching."
+            )
+            return
+
+        gguf_path = self._find_gguf(arg, Path(models_dir))
+        if not gguf_path:
+            gguf_files = sorted(Path(models_dir).glob("*.gguf"))
+            self.ui.show_error(f"No GGUF file matching '{arg}' in {models_dir}")
+            if gguf_files:
+                self.ui.console.print("Available:")
+                for f in gguf_files:
+                    self.ui.console.print(f"  {f.stem}")
+            return
+
+        if not self._server_proc:
+            self.ui.show_error(
+                "Server was not auto-started — cannot restart it.\n"
+                "  Restart the server manually with the new model."
+            )
+            return
+
+        # Kill and restart with new model
+        self.ui.console.print(f"[cyan]Switching to {gguf_path.stem}...[/cyan]")
+        self._server_proc.terminate()
+        try:
+            self._server_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self._server_proc.kill()
+
+        self.config.model.model_path = str(gguf_path)
+        self._server_proc = None
+        self.client.close()
+
+        # Extract model name for prompt overrides
+        self.client = LlamaCppClient(
+            base_url=self.config.model.server_url,
+            model=gguf_path.stem,
+            timeout=self.config.model.timeout,
+        )
+
+        if self._try_start_server():
+            self.ui.console.print(f"Switched to model: [cyan]{gguf_path.stem}[/cyan]")
+        else:
+            self.ui.show_error("Failed to restart server with new model.")
+
+    def _find_gguf(self, name: str, models_dir: Path) -> Path | None:
+        """Find a GGUF file matching the given name."""
+        # Exact filename match (with or without .gguf extension)
+        exact = models_dir / name
+        if exact.is_file():
+            return exact
+        exact_gguf = models_dir / f"{name}.gguf"
+        if exact_gguf.is_file():
+            return exact_gguf
+
+        # Normalize: replace : with -, lowercase, and search
+        normalized = name.lower().replace(":", "-")
+        for gguf_file in models_dir.glob("*.gguf"):
+            if gguf_file.stem.lower().startswith(normalized):
+                return gguf_file
+
+        return None
 
     def _execute_raw(self, command: str) -> None:
         """Execute a command directly, bypassing the LLM."""
@@ -264,7 +314,7 @@ class App:
             self.ui.console.print("\n[dim]Cancelled.[/dim]")
             return
         except httpx.ConnectError:
-            self.ui.show_error("Lost connection to Ollama. Is it still running?")
+            self.ui.show_error("Lost connection to LLM server. Is it still running?")
             return
         except httpx.TimeoutException:
             self.ui.show_error("LLM request timed out. Try a simpler query or increase timeout.")
@@ -273,7 +323,7 @@ class App:
             self.ui.show_error(f"Could not parse LLM response.\nRaw output: {e.raw_output}")
             return
         except httpx.HTTPStatusError as e:
-            self.ui.show_error(f"Ollama returned an error: {e.response.status_code}")
+            self.ui.show_error(f"LLM server returned an error: {e.response.status_code}")
             return
         finally:
             self._llm_active = False
@@ -349,8 +399,9 @@ def parse_args() -> argparse.Namespace:
         prog="nt",
         description="Natural Language Terminal — translate natural language to shell commands",
     )
-    parser.add_argument("--model", help="Ollama model to use")
-    parser.add_argument("--url", help="Ollama server URL")
+    parser.add_argument("--model", help="Model name (used for prompt overrides)")
+    parser.add_argument("--url", help="LLM server URL (default: http://localhost:8080)")
+    parser.add_argument("--model-path", help="Path to GGUF model file for auto-start")
     parser.add_argument("--config", type=Path, help="Path to config file")
     parser.add_argument("--init", action="store_true", help="Generate default config file")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -370,6 +421,8 @@ def main() -> None:
         overrides["model"] = args.model
     if args.url:
         overrides["url"] = args.url
+    if args.model_path:
+        overrides["model_path"] = args.model_path
 
     config = AppConfig.load(
         config_path=args.config,
