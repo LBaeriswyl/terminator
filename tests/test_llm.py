@@ -1,4 +1,4 @@
-"""Tests for Ollama client and response parsing."""
+"""Tests for llama-server client and response parsing."""
 
 import json
 import pytest
@@ -6,7 +6,7 @@ import httpx
 import respx
 
 from natural_terminal.llm import (
-    OllamaClient,
+    LlamaCppClient,
     CommandResponse,
     ClarifyResponse,
     ParseError,
@@ -15,7 +15,7 @@ from natural_terminal.llm import (
 
 @pytest.fixture
 def client():
-    c = OllamaClient(base_url="http://test:11434", model="test-model", timeout=5)
+    c = LlamaCppClient(base_url="http://test:8080", model="test-model", timeout=5)
     yield c
     c.close()
 
@@ -71,55 +71,35 @@ class TestParseResponse:
 class TestHealthCheck:
     @respx.mock
     def test_health_ok(self, client):
-        respx.get("http://test:11434/api/tags").mock(
-            return_value=httpx.Response(200, json={"models": []})
+        respx.get("http://test:8080/health").mock(
+            return_value=httpx.Response(200, json={"status": "ok"})
         )
         assert client.check_health() is True
 
     @respx.mock
-    def test_health_down(self, client):
-        respx.get("http://test:11434/api/tags").mock(side_effect=httpx.ConnectError("refused"))
+    def test_health_loading_model(self, client):
+        respx.get("http://test:8080/health").mock(
+            return_value=httpx.Response(200, json={"status": "loading model"})
+        )
         assert client.check_health() is False
 
-
-class TestCheckModel:
     @respx.mock
-    def test_model_found(self, client):
-        respx.get("http://test:11434/api/tags").mock(
-            return_value=httpx.Response(200, json={
-                "models": [{"name": "test-model:latest"}]
-            })
-        )
-        assert client.check_model() is True
-
-    @respx.mock
-    def test_model_not_found(self, client):
-        respx.get("http://test:11434/api/tags").mock(
-            return_value=httpx.Response(200, json={
-                "models": [{"name": "other-model:latest"}]
-            })
-        )
-        assert client.check_model() is False
-
-    @respx.mock
-    def test_model_exact_match(self, client):
-        respx.get("http://test:11434/api/tags").mock(
-            return_value=httpx.Response(200, json={
-                "models": [{"name": "test-model"}]
-            })
-        )
-        assert client.check_model() is True
+    def test_health_down(self, client):
+        respx.get("http://test:8080/health").mock(side_effect=httpx.ConnectError("refused"))
+        assert client.check_health() is False
 
 
 class TestChat:
     @respx.mock
     def test_chat_returns_command(self, client):
         response_data = {
-            "message": {
-                "content": '{"type": "command", "command": "ls", "explanation": "list"}'
-            }
+            "choices": [{
+                "message": {
+                    "content": '{"type": "command", "command": "ls", "explanation": "list"}'
+                }
+            }]
         }
-        respx.post("http://test:11434/api/chat").mock(
+        respx.post("http://test:8080/v1/chat/completions").mock(
             return_value=httpx.Response(200, json=response_data)
         )
         result = client.chat(
@@ -132,11 +112,13 @@ class TestChat:
     @respx.mock
     def test_chat_returns_clarify(self, client):
         response_data = {
-            "message": {
-                "content": '{"type": "clarify", "question": "Which dir?"}'
-            }
+            "choices": [{
+                "message": {
+                    "content": '{"type": "clarify", "question": "Which dir?"}'
+                }
+            }]
         }
-        respx.post("http://test:11434/api/chat").mock(
+        respx.post("http://test:8080/v1/chat/completions").mock(
             return_value=httpx.Response(200, json=response_data)
         )
         result = client.chat(
@@ -145,3 +127,27 @@ class TestChat:
         )
         assert isinstance(result, ClarifyResponse)
         assert result.question == "Which dir?"
+
+    @respx.mock
+    def test_chat_payload_shape(self, client):
+        """Verify request has no 'model' field and uses response_format."""
+        response_data = {
+            "choices": [{
+                "message": {
+                    "content": '{"type": "command", "command": "pwd", "explanation": ""}'
+                }
+            }]
+        }
+        route = respx.post("http://test:8080/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=response_data)
+        )
+        client.chat(
+            messages=[{"role": "user", "content": "where am i"}],
+            system_prompt="test",
+        )
+        request = route.calls[0].request
+        payload = json.loads(request.content)
+        assert "model" not in payload
+        assert payload["response_format"]["type"] == "json_schema"
+        assert payload["stream"] is False
+        assert payload["temperature"] == 0

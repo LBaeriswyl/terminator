@@ -1,4 +1,4 @@
-"""Ollama API client with structured response parsing."""
+"""llama-server (llama.cpp) API client with structured response parsing."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class ParseError(Exception):
         super().__init__(message)
 
 
-# JSON schema for Ollama's format parameter (constrains output at grammar level)
+# JSON schema for structured output via response_format
 RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -44,8 +44,8 @@ RESPONSE_SCHEMA = {
 }
 
 
-class OllamaClient:
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.1:8b", timeout: int = 30):
+class LlamaCppClient:
+    def __init__(self, base_url: str = "http://localhost:8080", model: str = "llama3.1:8b", timeout: int = 30):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -55,53 +55,15 @@ class OllamaClient:
         self._client.close()
 
     def check_health(self) -> bool:
+        """Check if the server is healthy and ready (model fully loaded)."""
         try:
-            resp = self._client.get("/api/tags")
-            return resp.status_code == 200
-        except httpx.ConnectError:
-            return False
-
-    def check_model(self, model: str | None = None) -> bool:
-        target = model or self.model
-        try:
-            resp = self._client.get("/api/tags")
+            resp = self._client.get("/health")
             if resp.status_code != 200:
                 return False
             data = resp.json()
-            models = [m["name"] for m in data.get("models", [])]
-            # Match with or without tag suffix
-            return any(
-                m == target or m.startswith(f"{target}:") or target.startswith(f"{m.split(':')[0]}:")
-                for m in models
-            )
-        except (httpx.ConnectError, httpx.TimeoutException):
+            return data.get("status") == "ok"
+        except (httpx.ConnectError, httpx.TimeoutException, ValueError):
             return False
-
-    def list_models(self) -> list[str]:
-        try:
-            resp = self._client.get("/api/tags")
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            return [m["name"] for m in data.get("models", [])]
-        except (httpx.ConnectError, httpx.TimeoutException):
-            return []
-
-    def warmup(self) -> None:
-        """Send a minimal request to trigger model loading."""
-        try:
-            self._client.post(
-                "/api/chat",
-                json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": "hi"}],
-                    "stream": False,
-                    "options": {"num_predict": 1},
-                },
-                timeout=60,
-            )
-        except (httpx.ConnectError, httpx.TimeoutException):
-            pass
 
     def chat(
         self,
@@ -115,20 +77,23 @@ class OllamaClient:
         ]
 
         payload: dict[str, Any] = {
-            "model": self.model,
             "messages": full_messages,
             "stream": False,
-            "format": RESPONSE_SCHEMA,
-            "options": {
-                "temperature": 0,
+            "temperature": 0,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": RESPONSE_SCHEMA,
+                },
             },
         }
 
-        resp = self._client.post("/api/chat", json=payload)
+        resp = self._client.post("/v1/chat/completions", json=payload)
         resp.raise_for_status()
 
         data = resp.json()
-        content = data.get("message", {}).get("content", "")
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         return self._parse_response(content)
 
     def _parse_response(self, content: str) -> CommandResponse | ClarifyResponse:
@@ -174,13 +139,3 @@ class OllamaClient:
                 return CommandResponse.model_validate(data)
         except ValidationError:
             return None
-
-    def pull_model(self, model: str | None = None) -> httpx.Response:
-        """Start pulling a model. Returns the response for streaming progress."""
-        target = model or self.model
-        return self._client.stream(
-            "POST",
-            "/api/pull",
-            json={"name": target},
-            timeout=None,
-        )
