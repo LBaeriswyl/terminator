@@ -9,8 +9,10 @@ from natural_terminal.config import AppConfig, ModelConfig, SafetyConfig, Contex
 class TestDefaults:
     def test_default_model(self, default_config):
         assert default_config.model.name == "llama3.1:8b"
-        assert default_config.model.ollama_url == "http://localhost:11434"
+        assert default_config.model.server_url == "http://localhost:8080"
         assert default_config.model.timeout == 30
+        assert default_config.model.model_path == ""
+        assert default_config.model.models_dir == ""
 
     def test_default_safety(self, default_config):
         assert default_config.safety.auto_execute_safe is True
@@ -30,8 +32,10 @@ class TestTomlLoading:
         config_file.write_text("""
 [model]
 name = "mistral"
-ollama_url = "http://remote:11434"
+server_url = "http://remote:8080"
 timeout = 60
+model_path = "/models/mistral.gguf"
+models_dir = "/models"
 
 [safety]
 auto_execute_safe = false
@@ -43,8 +47,10 @@ dir_tree_depth = 2
 """)
         config = AppConfig.load(config_path=config_file)
         assert config.model.name == "mistral"
-        assert config.model.ollama_url == "http://remote:11434"
+        assert config.model.server_url == "http://remote:8080"
         assert config.model.timeout == 60
+        assert config.model.model_path == "/models/mistral.gguf"
+        assert config.model.models_dir == "/models"
         assert config.safety.auto_execute_safe is False
         assert config.safety.blocked_patterns == ["rm -rf /"]
         assert config.context.history_length == 5
@@ -64,7 +70,20 @@ name = "codellama"
 """)
         config = AppConfig.load(config_path=config_file)
         assert config.model.name == "codellama"
-        assert config.model.ollama_url == "http://localhost:11434"
+        assert config.model.server_url == "http://localhost:8080"
+
+    def test_backward_compat_ollama_url(self, tmp_path, capsys):
+        """TOML with deprecated ollama_url should load into server_url with a warning."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("""
+[model]
+name = "llama3.1:8b"
+ollama_url = "http://old-server:11434"
+""")
+        config = AppConfig.load(config_path=config_file)
+        assert config.model.server_url == "http://old-server:11434"
+        captured = capsys.readouterr()
+        assert "deprecated" in captured.err.lower()
 
 
 class TestOverrides:
@@ -76,11 +95,11 @@ name = "mistral"
 """)
         config = AppConfig.load(
             config_path=config_file,
-            cli_overrides={"model": "codellama", "url": "http://other:11434"},
+            cli_overrides={"model": "codellama", "url": "http://other:8080"},
         )
         # CLI overrides win
         assert config.model.name == "codellama"
-        assert config.model.ollama_url == "http://other:11434"
+        assert config.model.server_url == "http://other:8080"
 
     def test_overrides_without_toml(self, tmp_path):
         config = AppConfig.load(
@@ -96,5 +115,8 @@ class TestWriteDefault:
         assert path.exists()
         content = path.read_text()
         assert "[model]" in content
+        assert "server_url" in content
+        assert "model_path" in content
+        assert "models_dir" in content
         assert "[safety]" in content
         assert "[context]" in content

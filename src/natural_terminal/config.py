@@ -33,8 +33,10 @@ DEFAULT_CONFIG_TOML = """\
 
 [model]
 name = "llama3.1:8b"
-ollama_url = "http://localhost:11434"
+server_url = "http://localhost:8080"
 timeout = 30  # seconds for LLM response
+model_path = ""  # path to GGUF file (required for auto-start)
+models_dir = ""  # directory of GGUF files (for /model switching)
 
 [safety]
 auto_execute_safe = true  # auto-run green commands without confirmation
@@ -51,8 +53,10 @@ output_truncate_lines = 60
 @dataclass
 class ModelConfig:
     name: str = "llama3.1:8b"
-    ollama_url: str = "http://localhost:11434"
+    server_url: str = "http://localhost:8080"
     timeout: int = 30
+    model_path: str = ""
+    models_dir: str = ""
 
 
 @dataclass
@@ -101,10 +105,21 @@ class AppConfig:
             m = data["model"]
             if "name" in m:
                 self.model.name = m["name"]
-            if "ollama_url" in m:
-                self.model.ollama_url = m["ollama_url"]
+            if "server_url" in m:
+                self.model.server_url = m["server_url"]
+            elif "ollama_url" in m:
+                print(
+                    "Warning: 'ollama_url' in config.toml is deprecated, "
+                    "use 'server_url' instead.",
+                    file=sys.stderr,
+                )
+                self.model.server_url = m["ollama_url"]
             if "timeout" in m:
                 self.model.timeout = int(m["timeout"])
+            if "model_path" in m:
+                self.model.model_path = m["model_path"]
+            if "models_dir" in m:
+                self.model.models_dir = m["models_dir"]
 
         if "safety" in data:
             s = data["safety"]
@@ -128,9 +143,13 @@ class AppConfig:
         if "model" in overrides:
             self.model.name = overrides["model"]
         if "url" in overrides:
-            self.model.ollama_url = overrides["url"]
+            self.model.server_url = overrides["url"]
         if "timeout" in overrides:
             self.model.timeout = int(overrides["timeout"])
+        if "model_path" in overrides:
+            self.model.model_path = overrides["model_path"]
+        if "models_dir" in overrides:
+            self.model.models_dir = overrides["models_dir"]
 
 
 def ensure_config_dir() -> Path:
