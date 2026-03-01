@@ -17,13 +17,13 @@ pytest tests/test_executor.py -v
 pytest tests/test_executor.py::TestSafetyClassifier::test_green_commands -v
 
 # Run with coverage
-pytest tests/ --cov=natural_terminal
+pytest tests/ --cov=terminator
 
 # Run the app
-nt                          # default (requires llama-server running or model_path configured)
-nt --model mistral          # different model name (for prompt overrides)
-nt --url http://remote:8080 # remote server
-nt --model-path ~/models/llama3.1-8b.gguf  # auto-start with specific model
+terminator                          # default (requires llama-server running or model_path configured)
+terminator --model mistral          # different model name (for prompt overrides)
+terminator --url http://remote:8080 # remote server
+terminator --model-path ~/models/llama3.1-8b.gguf  # auto-start with specific model
 
 # Run eval suite (requires running llama-server)
 python evals/eval_suite.py --model llama3.1:8b
@@ -45,7 +45,7 @@ Safety classify (GREEN/YELLOW/RED) → Confirm → Execute → Record history �
 - `prompt.py` → System prompt template with `{os_type}`, `{shell_type}`, `{cwd}`, `{dir_tree}`, `{username}` placeholders; per-model overrides via `MODEL_OVERRIDES` dict with 3-level resolution (exact model → family → defaults)
 - `executor.py` → Safety classification (curated GREEN/RED/INTERACTIVE command sets) + subprocess execution
 - `context.py` → StaticContext, DirectoryTree (cached, 500ms timeout), ConversationHistory (rolling window with output truncation), ContextManager
-- `config.py` → Dataclass hierarchy loaded as: defaults → TOML (`~/.natural-terminal/config.toml`) → CLI args
+- `config.py` → Dataclass hierarchy loaded as: defaults → TOML (`~/.terminator/config.toml`) → CLI args
 - `ui.py` → Rich panels (border color = safety level) + prompt_toolkit REPL with FileHistory
 
 ## Key Design Decisions

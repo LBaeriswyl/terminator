@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from natural_terminal.executor import (
+from terminator.executor import (
     SafetyClassifier,
     SafetyLevel,
     CommandExecutor,

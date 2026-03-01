@@ -15,7 +15,7 @@ else:
     except ModuleNotFoundError:
         import tomli as tomllib  # type: ignore[no-redef]
 
-CONFIG_DIR = Path.home() / ".natural-terminal"
+CONFIG_DIR = Path.home() / ".terminator"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 HISTORY_FILE = CONFIG_DIR / "history.txt"
 
@@ -29,7 +29,7 @@ DEFAULT_BLOCKED_PATTERNS = [
 ]
 
 DEFAULT_CONFIG_TOML = """\
-# Natural Terminal configuration
+# Terminator configuration
 
 [model]
 name = "llama3.1:8b"

@@ -10,8 +10,8 @@ from rich.panel import Panel
 from rich.status import Status
 from rich.text import Text
 
-from natural_terminal.config import HISTORY_FILE, ensure_config_dir
-from natural_terminal.executor import SafetyLevel
+from terminator.config import HISTORY_FILE, ensure_config_dir
+from terminator.executor import SafetyLevel
 
 META_COMMANDS = ["/raw", "/model", "/history", "/context", "/clear", "/help"]
 
@@ -39,7 +39,7 @@ class TerminalUI:
         )
 
     def get_input(self) -> str:
-        return self._session.prompt("nt> ")
+        return self._session.prompt("terminator> ")
 
     def show_command(self, command: str, explanation: str, level: SafetyLevel) -> None:
         color = SAFETY_COLORS[level]
@@ -101,7 +101,7 @@ class TerminalUI:
     def show_welcome(self, model: str, url: str) -> None:
         self.console.print(
             Panel(
-                f"[bold]Natural Terminal[/bold]\n"
+                f"[bold]Terminator[/bold]\n"
                 f"Model: [cyan]{model}[/cyan] | Server: [cyan]{url}[/cyan]\n"
                 f'Type naturally or [dim]/help[/dim] for commands. [dim]Ctrl+D[/dim] to exit.',
                 border_style="blue",

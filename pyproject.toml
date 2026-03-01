@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "natural-terminal"
+name = "terminator"
 version = "0.1.0"
 description = "Natural language terminal powered by local LLMs via llama.cpp"
 readme = "README.md"
@@ -25,10 +25,10 @@ dev = [
 ]
 
 [project.scripts]
-nt = "natural_terminal.main:main"
+terminator = "terminator.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/natural_terminal"]
+packages = ["src/terminator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

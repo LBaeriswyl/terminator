@@ -13,12 +13,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-# Add project root to path so we can import natural_terminal
+# Add project root to path so we can import terminator
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from natural_terminal.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
-from natural_terminal.prompt import build_system_prompt, MODEL_OVERRIDES
-from natural_terminal.context import ExchangeRecord, ConversationHistory
+from terminator.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
+from terminator.prompt import build_system_prompt, MODEL_OVERRIDES
+from terminator.context import ExchangeRecord, ConversationHistory
 
 CASES_FILE = Path(__file__).parent / "cases.json"
 RESULTS_DIR = Path(__file__).parent / "results"

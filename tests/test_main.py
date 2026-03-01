@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from natural_terminal.main import App
-from natural_terminal.config import AppConfig
+from terminator.main import App
+from terminator.config import AppConfig
 
 
 def make_app(server_url="http://localhost:8080", model_path="/tmp/model.gguf"):
@@ -33,7 +33,7 @@ class TestTryStartServer:
 
     def test_binary_not_found(self):
         app = make_app()
-        with patch("natural_terminal.main.shutil.which", return_value=None):
+        with patch("terminator.main.shutil.which", return_value=None):
             result = app._try_start_server()
         assert result is False
         app.ui.show_error.assert_called_once()
@@ -41,7 +41,7 @@ class TestTryStartServer:
 
     def test_model_path_not_configured(self):
         app = make_app(model_path="")
-        with patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"):
+        with patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"):
             result = app._try_start_server()
         assert result is False
         app.ui.show_error.assert_called_once()
@@ -49,7 +49,7 @@ class TestTryStartServer:
 
     def test_model_file_not_found(self):
         app = make_app(model_path="/nonexistent/model.gguf")
-        with patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"):
+        with patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"):
             result = app._try_start_server()
         assert result is False
         app.ui.show_error.assert_called_once()
@@ -65,9 +65,9 @@ class TestTryStartServer:
         app.client.check_health.side_effect = [False, False, True]
 
         with (
-            patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"),
-            patch("natural_terminal.main.subprocess.Popen", return_value=mock_proc) as mock_popen,
-            patch("natural_terminal.main.time.sleep"),
+            patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"),
+            patch("terminator.main.subprocess.Popen", return_value=mock_proc) as mock_popen,
+            patch("terminator.main.time.sleep"),
         ):
             result = app._try_start_server()
 
@@ -90,9 +90,9 @@ class TestTryStartServer:
         app.client.check_health.return_value = False
 
         with (
-            patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"),
-            patch("natural_terminal.main.subprocess.Popen", return_value=mock_proc),
-            patch("natural_terminal.main.time.sleep"),
+            patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"),
+            patch("terminator.main.subprocess.Popen", return_value=mock_proc),
+            patch("terminator.main.time.sleep"),
         ):
             result = app._try_start_server()
 
@@ -109,9 +109,9 @@ class TestTryStartServer:
         app.client.check_health.return_value = False
 
         with (
-            patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"),
-            patch("natural_terminal.main.subprocess.Popen", return_value=mock_proc),
-            patch("natural_terminal.main.time.sleep"),
+            patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"),
+            patch("terminator.main.subprocess.Popen", return_value=mock_proc),
+            patch("terminator.main.time.sleep"),
         ):
             result = app._try_start_server()
 
@@ -123,8 +123,8 @@ class TestTryStartServer:
         model_file.write_text("fake")
         app = make_app(model_path=str(model_file))
         with (
-            patch("natural_terminal.main.shutil.which", return_value="/usr/bin/llama-server"),
-            patch("natural_terminal.main.subprocess.Popen", side_effect=OSError("Permission denied")),
+            patch("terminator.main.shutil.which", return_value="/usr/bin/llama-server"),
+            patch("terminator.main.subprocess.Popen", side_effect=OSError("Permission denied")),
         ):
             result = app._try_start_server()
 
@@ -133,7 +133,7 @@ class TestTryStartServer:
 
     def test_localhost_127_is_local(self):
         app = make_app("http://127.0.0.1:8080")
-        with patch("natural_terminal.main.shutil.which", return_value=None):
+        with patch("terminator.main.shutil.which", return_value=None):
             result = app._try_start_server()
         assert result is False
         # Should try to find binary (not reject as remote)

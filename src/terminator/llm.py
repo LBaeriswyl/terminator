@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from natural_terminal.prompt import get_few_shot_examples
+from terminator.prompt import get_few_shot_examples
 
 
 class CommandResponse(BaseModel):

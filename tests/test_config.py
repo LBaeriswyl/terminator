@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from natural_terminal.config import AppConfig, ModelConfig, SafetyConfig, ContextConfig, write_default_config
+from terminator.config import AppConfig, ModelConfig, SafetyConfig, ContextConfig, write_default_config
 
 
 class TestDefaults:

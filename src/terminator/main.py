@@ -14,13 +14,13 @@ from pathlib import Path
 
 import httpx
 
-from natural_terminal import __version__
-from natural_terminal.config import AppConfig, write_default_config, CONFIG_FILE
-from natural_terminal.context import ContextManager
-from natural_terminal.executor import CommandExecutor, SafetyClassifier, SafetyLevel
-from natural_terminal.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
-from natural_terminal.prompt import build_system_prompt
-from natural_terminal.ui import TerminalUI
+from terminator import __version__
+from terminator.config import AppConfig, write_default_config, CONFIG_FILE
+from terminator.context import ContextManager
+from terminator.executor import CommandExecutor, SafetyClassifier, SafetyLevel
+from terminator.llm import LlamaCppClient, CommandResponse, ClarifyResponse, ParseError
+from terminator.prompt import build_system_prompt
+from terminator.ui import TerminalUI
 
 
 class App:
@@ -100,15 +100,16 @@ class App:
         server_path = shutil.which("llama-server")
         if not server_path:
             self.ui.show_error(
-                "llama-server is not installed.\n"
-                "  Install from: https://github.com/ggerganov/llama.cpp"
+                "llama-server (llama.cpp) is not installed.\n"
+                "  Install with: brew install llama.cpp\n"
+                "  More info: https://github.com/ggerganov/llama.cpp"
             )
             return False
 
         model_path = self.config.model.model_path
         if not model_path:
             self.ui.show_error(
-                "No model_path configured. Set it in ~/.natural-terminal/config.toml\n"
+                "No model_path configured. Set it in ~/.terminator/config.toml\n"
                 "  or pass --model-path /path/to/model.gguf"
             )
             return False
@@ -207,7 +208,7 @@ class App:
         models_dir = self.config.model.models_dir
         if not models_dir or not Path(models_dir).is_dir():
             self.ui.show_error(
-                "No models_dir configured. Set it in ~/.natural-terminal/config.toml\n"
+                "No models_dir configured. Set it in ~/.terminator/config.toml\n"
                 "  to enable model switching."
             )
             return
@@ -396,8 +397,8 @@ class App:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="nt",
-        description="Natural Language Terminal — translate natural language to shell commands",
+        prog="terminator",
+        description="Terminator — translate natural language to shell commands",
     )
     parser.add_argument("--model", help="Model name (used for prompt overrides)")
     parser.add_argument("--url", help="LLM server URL (default: http://localhost:8080)")

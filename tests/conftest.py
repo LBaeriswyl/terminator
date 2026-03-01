@@ -2,7 +2,7 @@
 
 import pytest
 
-from natural_terminal.config import AppConfig, ModelConfig, SafetyConfig, ContextConfig
+from terminator.config import AppConfig, ModelConfig, SafetyConfig, ContextConfig
 
 
 @pytest.fixture

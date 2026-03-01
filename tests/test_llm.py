@@ -5,7 +5,7 @@ import pytest
 import httpx
 import respx
 
-from natural_terminal.llm import (
+from terminator.llm import (
     LlamaCppClient,
     CommandResponse,
     ClarifyResponse,

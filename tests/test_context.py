@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from natural_terminal.context import (
+from terminator.context import (
     StaticContext,
     ExchangeRecord,
     ConversationHistory,

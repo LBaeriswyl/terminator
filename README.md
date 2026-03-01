@@ -1,4 +1,4 @@
-# Natural Terminal
+# Terminator
 
 Translate natural language into shell commands using a local LLM via [llama.cpp](https://github.com/ggerganov/llama.cpp). No external API calls — everything runs on your machine.
 
@@ -16,7 +16,7 @@ brew install llama.cpp
 huggingface-cli download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf --local-dir ~/models
 ```
 
-> **Note:** If `llama-server` is installed but not running, `nt` will start it automatically using the configured `model_path`. This only works for local connections — remote servers (`--url`) must be started separately.
+> **Note:** If `llama-server` is installed but not running, `terminator` will start it automatically using the configured `model_path`. This only works for local connections — remote servers (`--url`) must be started separately.
 
 ## Installation
 
@@ -28,19 +28,19 @@ pip install -e ".[dev]"
 
 ```bash
 # Start the REPL (requires llama-server running or model_path configured)
-nt
+terminator
 
 # Use a different model name (for prompt overrides)
-nt --model mistral
+terminator --model mistral
 
 # Use a remote LLM server
-nt --url http://remote:8080
+terminator --url http://remote:8080
 
 # Specify a GGUF model file for auto-start
-nt --model-path ~/models/llama3.1-8b-Q4_K_M.gguf
+terminator --model-path ~/models/llama3.1-8b-Q4_K_M.gguf
 
 # Generate default config file
-nt --init
+terminator --init
 ```
 
 ### In the REPL
@@ -48,13 +48,13 @@ nt --init
 Type natural language and get shell commands:
 
 ```
-nt> list all files including hidden ones
+terminator> list all files including hidden ones
 ┌── SAFE ──────────────────────────┐
 │ $ ls -la                         │
 │ List all files in long format    │
 └──────────────────────────────────┘
 
-nt> find all python files and count them
+terminator> find all python files and count them
 ┌── CAUTION ───────────────────────────────┐
 │ $ find . -name "*.py" | wc -l            │
 │ Find .py files recursively and count     │
@@ -62,7 +62,7 @@ nt> find all python files and count them
 Execute? [y/N] y
 42
 
-nt> delete temp.log
+terminator> delete temp.log
 ┌── DANGER ────────────────────────┐
 │ $ rm temp.log                    │
 │ Remove the file temp.log         │
@@ -91,9 +91,9 @@ Blocked patterns (e.g., `rm -rf /`, fork bombs) are always rejected.
 
 ## Configuration
 
-Config file: `~/.natural-terminal/config.toml`
+Config file: `~/.terminator/config.toml`
 
-Generate the default config with `nt --init`.
+Generate the default config with `terminator --init`.
 
 ```toml
 [model]
